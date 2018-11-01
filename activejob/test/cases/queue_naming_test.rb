@@ -10,65 +10,77 @@ class QueueNamingTest < ActiveSupport::TestCase
     assert_equal "default", HelloJob.queue_name
   end
 
-  test "uses given queue name job" do
-    original_queue_name = HelloJob.queue_name
+  test "uses default_queue_name" do
+    original_default_queue_name = ActiveJob::Base.default_queue_name
 
+    begin
+      ActiveJob::Base.default_queue_name = "other_default"
+      assert_equal "other_default", HelloJob.queue_name
+    ensure
+      ActiveJob::Base.default_queue_name = original_default_queue_name
+    end
+  end
+
+  test "uses given queue name job" do
     begin
       HelloJob.queue_as :greetings
       assert_equal "greetings", HelloJob.new.queue_name
     ensure
-      HelloJob.queue_name = original_queue_name
+      HelloJob.queue_name = nil
     end
   end
 
   test "allows a blank queue name" do
-    original_queue_name = HelloJob.queue_name
-
     begin
       HelloJob.queue_as ""
       assert_equal "", HelloJob.new.queue_name
     ensure
-      HelloJob.queue_name = original_queue_name
+      HelloJob.queue_name = nil
     end
   end
 
   test "does not use a nil queue name" do
-    original_queue_name = HelloJob.queue_name
-
     begin
       HelloJob.queue_as nil
       assert_equal "default", HelloJob.new.queue_name
     ensure
-      HelloJob.queue_name = original_queue_name
+      HelloJob.queue_name = nil
     end
   end
 
   test "evals block given to queue_as to determine queue" do
-    original_queue_name = HelloJob.queue_name
-
     begin
       HelloJob.queue_as { :another }
       assert_equal "another", HelloJob.new.queue_name
     ensure
-      HelloJob.queue_name = original_queue_name
+      HelloJob.queue_name = nil
     end
   end
 
   test "can use arguments to determine queue_name in queue_as block" do
-    original_queue_name = HelloJob.queue_name
-
     begin
       HelloJob.queue_as { arguments.first == "1" ? :one : :two }
       assert_equal "one", HelloJob.new("1").queue_name
       assert_equal "two", HelloJob.new("3").queue_name
     ensure
-      HelloJob.queue_name = original_queue_name
+      HelloJob.queue_name = nil
+    end
+  end
+
+  test "queue_name_prefix prepended to the default queue name" do
+    original_queue_name_prefix = ActiveJob::Base.queue_name_prefix
+
+    begin
+      ActiveJob::Base.queue_name_prefix = "prod"
+      assert_equal "prod_default", HelloJob.new.queue_name
+    ensure
+      ActiveJob::Base.queue_name_prefix = original_queue_name_prefix
+      HelloJob.queue_name = nil
     end
   end
 
   test "queue_name_prefix prepended to the queue name with default delimiter" do
     original_queue_name_prefix = ActiveJob::Base.queue_name_prefix
-    original_queue_name = HelloJob.queue_name
 
     begin
       ActiveJob::Base.queue_name_prefix = "aj"
@@ -76,14 +88,13 @@ class QueueNamingTest < ActiveSupport::TestCase
       assert_equal "aj_low", HelloJob.queue_name
     ensure
       ActiveJob::Base.queue_name_prefix = original_queue_name_prefix
-      HelloJob.queue_name = original_queue_name
+      HelloJob.queue_name = nil
     end
   end
 
   test "queue_name_prefix prepended to the queue name with custom delimiter" do
     original_queue_name_prefix = ActiveJob::Base.queue_name_prefix
     original_queue_name_delimiter = ActiveJob::Base.queue_name_delimiter
-    original_queue_name = HelloJob.queue_name
 
     begin
       ActiveJob::Base.queue_name_delimiter = "."
@@ -93,7 +104,7 @@ class QueueNamingTest < ActiveSupport::TestCase
     ensure
       ActiveJob::Base.queue_name_prefix = original_queue_name_prefix
       ActiveJob::Base.queue_name_delimiter = original_queue_name_delimiter
-      HelloJob.queue_name = original_queue_name
+      HelloJob.queue_name = nil
     end
   end
 

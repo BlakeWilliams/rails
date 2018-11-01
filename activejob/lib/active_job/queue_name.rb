@@ -33,17 +33,28 @@ module ActiveJob
       end
     end
 
-    included do
-      class_attribute :queue_name, instance_accessor: false, default: default_queue_name
-      class_attribute :queue_name_delimiter, instance_accessor: false, default: "_"
+    class_methods do
+      attr_writer :queue_name
+
+      def queue_name
+        if defined?(@queue_name) && !@queue_name.nil?
+          @queue_name
+        else
+          queue_name_from_part(nil)
+        end
+      end
     end
 
-    # Returns the name of the queue the job will be run on.
-    def queue_name
-      if @queue_name.is_a?(Proc)
-        @queue_name = self.class.queue_name_from_part(instance_exec(&@queue_name))
+    included do
+      class_attribute :queue_name_delimiter, instance_accessor: false, default: "_"
+
+      def queue_name
+        if @queue_name.is_a?(Proc)
+          instance_exec(&@queue_name).to_s
+        else
+          @queue_name
+        end
       end
-      @queue_name
     end
   end
 end
