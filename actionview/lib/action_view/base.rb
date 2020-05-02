@@ -262,11 +262,25 @@ module ActionView #:nodoc:
 
       @view_renderer = ActionView::Renderer.new @lookup_context
       @current_template = nil
+      @child_renderer = nil
 
       @cache_hit = {}
       assign(assigns)
       assign_controller(controller)
       _prepare_context
+    end
+
+    def with_child_renderer(object, &block)
+      _old_child_renderer = @child_renderer
+      @child_renderer= object
+      yield
+    ensure
+      @child_renderer = _old_child_renderer
+    end
+
+    def output_buffer=(buffer)
+      @output_buffer = buffer
+      @child_renderer.output_buffer = buffer if @child_renderer.present?
     end
 
     def _run(method, template, locals, buffer, &block)
