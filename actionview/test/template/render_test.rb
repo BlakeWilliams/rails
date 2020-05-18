@@ -3,6 +3,7 @@
 require "abstract_unit"
 require "controller/fake_models"
 require "test_component"
+require "test_form_component"
 require "active_model/validations"
 
 class TestController < ActionController::Base
@@ -692,6 +693,10 @@ module RenderTestCases
       %(Hello, World!),
       @view.render(TestComponent.new)
     )
+  end
+
+  def test_renders_component_with_form_helpers_correctly
+    assert_match /<label for="customer_name">\n\s+Test/, @view.render(TestFormComponent.new)
   end
 end
 

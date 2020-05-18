@@ -22,7 +22,7 @@ Customer = Struct.new(:name, :id) do
   alias :to_text :to_js
 
   def errors
-    []
+    ActiveModel::Errors.new(self)
   end
 
   def persisted?

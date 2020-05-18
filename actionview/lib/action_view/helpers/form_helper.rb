@@ -2547,7 +2547,7 @@ module ActionView
           }
 
           @template.fields_for(name, object, fields_options) do |f|
-            output = @template.capture(f, &block)
+            output = capture(f, &block)
             output.concat f.hidden_field(:id) if output && emit_hidden_id && !f.emitted_hidden_id?
             output
           end
