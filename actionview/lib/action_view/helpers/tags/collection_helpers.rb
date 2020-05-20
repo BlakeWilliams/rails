@@ -89,7 +89,7 @@ module ActionView
               builder = instantiate_builder(builder_class, item, value, text, default_html_options)
 
               if block_given?
-                @template_object.capture(builder, &block)
+                block.binding.receiver.capture(builder, &block)
               else
                 render_component(builder)
               end

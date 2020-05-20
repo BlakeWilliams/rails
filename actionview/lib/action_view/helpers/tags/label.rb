@@ -60,7 +60,7 @@ module ActionView
           builder = LabelBuilder.new(@template_object, @object_name, @method_name, @object, tag_value)
 
           content = if block_given?
-            @template_object.capture(builder, &block)
+            block.binding.receiver.capture(builder, &block)
           elsif @content.present?
             @content.to_s
           else

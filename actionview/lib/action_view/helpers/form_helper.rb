@@ -755,10 +755,10 @@ module ActionView
           output  = capture(builder, &block)
           options[:multipart] ||= builder.multipart?
 
-          html_options = html_options_for_form_with(url, model, **options)
+          html_options = html_options_for_form_with(url, model, options)
           form_tag_with_body(html_options, output)
         else
-          html_options = html_options_for_form_with(url, model, **options)
+          html_options = html_options_for_form_with(url, model, options)
           form_tag_html(html_options)
         end
       end
@@ -888,7 +888,7 @@ module ActionView
       #
       # Now, when you use a form element with the <tt>_destroy</tt> parameter,
       # with a value that evaluates to +true+, you will destroy the associated
-      # model (e.g. 1, '1', true, or 'true'):
+      # model (eg. 1, '1', true, or 'true'):
       #
       #   <%= form_for @person do |person_form| %>
       #     ...
@@ -977,7 +977,7 @@ module ActionView
       # This will allow you to specify which models to destroy in the
       # attributes hash by adding a form element for the <tt>_destroy</tt>
       # parameter with a value that evaluates to +true+
-      # (e.g. 1, '1', true, or 'true'):
+      # (eg. 1, '1', true, or 'true'):
       #
       #   <%= form_for @person do |person_form| %>
       #     ...
@@ -1006,7 +1006,14 @@ module ActionView
       # to prevent fields_for from rendering it automatically.
       def fields_for(record_name, record_object = nil, options = {}, &block)
         builder = instantiate_builder(record_name, record_object, options)
-        capture(builder, &block)
+
+        block_context = block.binding.receiver
+
+        if block_context.respond_to?(:capture)
+          block_context.capture(builder, &block)
+        else
+          capture(builder, &block)
+        end
       end
 
       # Scopes input fields with either an explicit scope or model.
@@ -1063,7 +1070,13 @@ module ActionView
         end
 
         builder = instantiate_builder(scope, model, options)
-        capture(builder, &block)
+        block_context = block.binding.receiver
+
+        if block_context.respond_to?(:capture)
+          block_context.capture(builder, &block)
+        else
+          capture(builder, &block)
+        end
       end
 
       # Returns a label tag tailored for labelling an input field for a specified attribute (identified by +method+) on an object
@@ -1905,7 +1918,7 @@ module ActionView
         class_eval <<-RUBY_EVAL, __FILE__, __LINE__ + 1
           def #{selector}(method, options = {})  # def text_field(method, options = {})
             @template.send(                      #   @template.send(
-              #{selector.inspect},               #     :text_field,
+              #{selector.inspect},               #     "text_field",
               @object_name,                      #     @object_name,
               method,                            #     method,
               objectify_options(options))        #     objectify_options(options))
@@ -2038,7 +2051,7 @@ module ActionView
       #
       # Now, when you use a form element with the <tt>_destroy</tt> parameter,
       # with a value that evaluates to +true+, you will destroy the associated
-      # model (e.g. 1, '1', true, or 'true'):
+      # model (eg. 1, '1', true, or 'true'):
       #
       #   <%= form_for @person do |person_form| %>
       #     ...
@@ -2127,7 +2140,7 @@ module ActionView
       # This will allow you to specify which models to destroy in the
       # attributes hash by adding a form element for the <tt>_destroy</tt>
       # parameter with a value that evaluates to +true+
-      # (e.g. 1, '1', true, or 'true'):
+      # (eg. 1, '1', true, or 'true'):
       #
       #   <%= form_for @person do |person_form| %>
       #     ...
@@ -2162,7 +2175,6 @@ module ActionView
 
         case record_name
         when String, Symbol
-          record_name = record_name.to_s
           if nested_attributes_association?(record_name)
             return fields_for_with_nested_attributes(record_name, record_object, fields_options, block)
           end
@@ -2181,8 +2193,8 @@ module ActionView
 
         record_name = if index
           "#{object_name}[#{index}][#{record_name}]"
-        elsif record_name.end_with?("[]")
-          record_name = record_name.sub(/(.*)\[\]$/, "[\\1][#{record_object.id}]")
+        elsif record_name.to_s.end_with?("[]")
+          record_name = record_name.to_s.sub(/(.*)\[\]$/, "[\\1][#{record_object.id}]")
           "#{object_name}#{record_name}"
         else
           "#{object_name}[#{record_name}]"
@@ -2481,9 +2493,7 @@ module ActionView
 
       private
         def objectify_options(options)
-          result = @default_options.merge(options)
-          result[:object] = @object
-          result
+          @default_options.merge(options.merge(object: @object))
         end
 
         def submit_default_value
@@ -2547,7 +2557,7 @@ module ActionView
           }
 
           @template.fields_for(name, object, fields_options) do |f|
-            output = capture(f, &block)
+            output = block.binding.receiver.capture(f, &block)
             output.concat f.hidden_field(:id) if output && emit_hidden_id && !f.emitted_hidden_id?
             output
           end

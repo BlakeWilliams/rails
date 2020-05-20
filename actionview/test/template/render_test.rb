@@ -696,6 +696,7 @@ module RenderTestCases
   end
 
   def test_renders_component_with_form_helpers_correctly
+    puts @view.render(TestFormComponent.new)
     assert_match /<label for="customer_name">\n\s+Test/, @view.render(TestFormComponent.new)
   end
 end

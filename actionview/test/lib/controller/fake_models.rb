@@ -5,8 +5,13 @@ require "active_model"
 Customer = Struct.new(:name, :id) do
   extend ActiveModel::Naming
   include ActiveModel::Conversion
+  include ActiveModel::Model
 
   undef_method :to_json
+
+  def to_partial_path
+    "/"
+  end
 
   def to_xml(options = {})
     if options[:builder]
