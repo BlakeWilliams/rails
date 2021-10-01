@@ -89,7 +89,11 @@ module ActionView
     #
     # Override this method in a module to change the default behavior.
     def view_context
-      view_context_class.new(lookup_context, view_assigns, self)
+      @_view_context ||= new_view_context
+    end
+
+    def new_view_context
+      @_view_context = view_context_class.new(lookup_context, view_assigns, self)
     end
 
     # Returns an object that is able to render templates.
@@ -108,7 +112,7 @@ module ActionView
       def _render_template(options)
         variant = options.delete(:variant)
         assigns = options.delete(:assigns)
-        context = view_context
+        context = new_view_context
 
         context.assign assigns if assigns
         lookup_context.variants = variant if variant
