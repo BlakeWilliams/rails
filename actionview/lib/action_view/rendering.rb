@@ -89,7 +89,7 @@ module ActionView
     #
     # Override this method in a module to change the default behavior.
     def view_context
-      view_context_class.new(lookup_context, view_assigns, self)
+      @_view_context ||= view_context_class.new(lookup_context, view_assigns, self)
     end
 
     # Returns an object that is able to render templates.
