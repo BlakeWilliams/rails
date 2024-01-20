@@ -767,7 +767,7 @@ module ApplicationTests
       assert_equal "some_value", verifier.verify(last_response.body)
     end
 
-    test "falls back to secondary secret_key_base values" do
+    test "cookies written with fallback_secret_key_base can be read" do
       make_basic_app do |application|
         Rails.deprecator.silence do
           application.secrets.secret_key_base = "b3c631c314c0bbca50c1b2843150fe33"
@@ -776,6 +776,22 @@ module ApplicationTests
         application.config.session_store :disabled
       end
 
+      class ::OmgController < ActionController::Base
+        def index
+          render plain: cookies.signed[:some_key]
+        end
+      end
+
+      secret = app.key_generator(app.fallback_secret_key_base).generate_key("signed cookie")
+      verifier = ActiveSupport::MessageVerifier.new(secret)
+      fallback_signed_message = verifier.generate("verified value")
+
+      get "/", {}, { "HTTP_COOKIE" => "some_key=#{::Rack::Utils.escape fallback_signed_message}" }
+
+      assert_equal "verified value", last_response.body
+    end
+
+    test "message verifiers can read messages generated with fallback_secret_key_base" do
       original_secret = app.key_generator.generate_key("signed cookie")
       original_verifiers = ActiveSupport::MessageVerifiers.new do |salt, secret_key_base: app.secret_key_base|
         app.key_generator(app.secret_key_base).generate_key(salt)
