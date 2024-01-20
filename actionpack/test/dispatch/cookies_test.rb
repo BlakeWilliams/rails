@@ -1169,6 +1169,54 @@ class CookiesTest < ActionController::TestCase
     assert_equal "bar", encryptor.decrypt_and_verify(@response.cookies["foo"])
   end
 
+  def test_encrypted_cookie_fallback_secret
+    @request.env["action_dispatch.encrypted_cookie_cipher"] = "aes-256-gcm"
+    key_len = ActiveSupport::MessageEncryptor.key_len("aes-256-gcm")
+
+    fallback_key_generator = @request.env["action_dispatch.fallback_key_generator"] = ActiveSupport::KeyGenerator.new(FALLBACK_SECRET_KEY_BASE, iterations: 2)
+    salt = @request.env["action_dispatch.authenticated_encrypted_cookie_salt"]
+    secret = fallback_key_generator.generate_key(salt, key_len)
+    fallback_encryptor = ActiveSupport::MessageEncryptor.new(secret, cipher: "aes-256-gcm", serializer: Marshal)
+    new_message = fallback_encryptor.encrypt_and_sign(45)
+
+    @request.headers["Cookie"] = "foo=#{::Rack::Utils.escape new_message}"
+
+    get :get_encrypted_cookie
+    assert_equal 45, @controller.send(:cookies).encrypted[:foo]
+
+    key_generator = @request.env["action_dispatch.key_generator"]
+    secret = key_generator.generate_key(@request.env["action_dispatch.authenticated_encrypted_cookie_salt"], key_len)
+    encryptor = ActiveSupport::MessageEncryptor.new(secret, cipher: "aes-256-gcm", serializer: Marshal)
+    assert_equal 45, encryptor.decrypt_and_verify(@response.cookies["foo"])
+  end
+
+  def test_legacy_encrypted_cookie_fallback_secret
+    @request.env["action_dispatch.use_authenticated_cookie_encryption"] = nil
+    key_len = ActiveSupport::MessageEncryptor.key_len("aes-256-cbc")
+
+    fallback_key_generator = @request.env["action_dispatch.fallback_key_generator"] = ActiveSupport::KeyGenerator.new(FALLBACK_SECRET_KEY_BASE, iterations: 2)
+    encrypted_cookie_salt = @request.env["action_dispatch.encrypted_cookie_salt"]
+    encrypted_signed_cookie_salt = @request.env["action_dispatch.encrypted_signed_cookie_salt"]
+
+    secret = fallback_key_generator.generate_key(encrypted_cookie_salt, key_len)
+    sign_secret = fallback_key_generator.generate_key(encrypted_signed_cookie_salt)
+    fallback_encryptor = ActiveSupport::MessageEncryptor.new(secret, sign_secret, cipher: "aes-256-cbc", digest: "SHA1", serializer: Marshal)
+    new_message = fallback_encryptor.encrypt_and_sign(45)
+
+    @request.headers["Cookie"] = "foo=#{::Rack::Utils.escape new_message}"
+
+    get :get_encrypted_cookie
+    assert_equal 45, @controller.send(:cookies).encrypted[:foo]
+
+    key_generator = @request.env["action_dispatch.key_generator"]
+    encrypted_cookie_salt = @request.env["action_dispatch.encrypted_cookie_salt"]
+    encrypted_signed_cookie_salt = @request.env["action_dispatch.encrypted_signed_cookie_salt"]
+    secret = key_generator.generate_key(encrypted_cookie_salt, ActiveSupport::MessageEncryptor.key_len("aes-256-cbc"))
+    sign_secret = key_generator.generate_key(encrypted_signed_cookie_salt)
+    encryptor = ActiveSupport::MessageEncryptor.new(secret, sign_secret, cipher: "aes-256-cbc", digest: "SHA1", serializer: Marshal)
+    assert_equal 45, encryptor.decrypt_and_verify(@response.cookies["foo"])
+  end
+
   def test_encrypted_cookie_rotating_secret
     secret = "b3c631c314c0bbca50c1b2843150fe33"
 

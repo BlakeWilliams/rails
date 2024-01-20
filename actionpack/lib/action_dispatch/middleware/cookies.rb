@@ -33,6 +33,10 @@ module ActionDispatch
       get_header Cookies::GENERATOR_KEY
     end
 
+    def fallback_key_generator
+      get_header Cookies::FALLBACK_GENERATOR_KEY
+    end
+
     def signed_cookie_salt
       get_header Cookies::SIGNED_COOKIE_SALT
     end
@@ -188,6 +192,7 @@ module ActionDispatch
   class Cookies
     HTTP_HEADER   = "Set-Cookie"
     GENERATOR_KEY = "action_dispatch.key_generator"
+    FALLBACK_GENERATOR_KEY = "action_dispatch.fallback_key_generator"
     SIGNED_COOKIE_SALT = "action_dispatch.signed_cookie_salt"
     ENCRYPTED_COOKIE_SALT = "action_dispatch.encrypted_cookie_salt"
     ENCRYPTED_SIGNED_COOKIE_SALT = "action_dispatch.encrypted_signed_cookie_salt"
@@ -638,11 +643,24 @@ module ActionDispatch
           key_len = ActiveSupport::MessageEncryptor.key_len(encrypted_cookie_cipher)
           secret = request.key_generator.generate_key(request.authenticated_encrypted_cookie_salt, key_len)
           @encryptor = ActiveSupport::MessageEncryptor.new(secret, cipher: encrypted_cookie_cipher, serializer: SERIALIZER)
+
+          if request.fallback_key_generator
+            fallback_secret = request.fallback_key_generator.generate_key(request.authenticated_encrypted_cookie_salt, key_len)
+
+            @encryptor.rotate(fallback_secret, cipher: encrypted_cookie_cipher, serializer: SERIALIZER)
+          end
         else
           key_len = ActiveSupport::MessageEncryptor.key_len("aes-256-cbc")
           secret = request.key_generator.generate_key(request.encrypted_cookie_salt, key_len)
           sign_secret = request.key_generator.generate_key(request.encrypted_signed_cookie_salt)
           @encryptor = ActiveSupport::MessageEncryptor.new(secret, sign_secret, cipher: "aes-256-cbc", serializer: SERIALIZER)
+
+          if request.fallback_key_generator
+            fallback_secret = request.fallback_key_generator.generate_key(request.encrypted_cookie_salt, key_len)
+            fallback_sign_secret = request.fallback_key_generator.generate_key(request.encrypted_signed_cookie_salt)
+
+            @encryptor.rotate(fallback_secret, fallback_sign_secret, cipher: 'aes-256-cbc', serializer: SERIALIZER)
+          end
         end
 
         request.cookies_rotations.encrypted.each do |(*secrets)|

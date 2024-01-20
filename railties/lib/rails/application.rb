@@ -314,6 +314,7 @@ module Rails
           "action_dispatch.logger" => Rails.logger,
           "action_dispatch.backtrace_cleaner" => Rails.backtrace_cleaner,
           "action_dispatch.key_generator" => key_generator,
+          "action_dispatch.fallback_key_generator" => fallback_secret_key_base && key_generator(fallback_secret_key_base),
           "action_dispatch.http_auth_salt" => config.action_dispatch.http_auth_salt,
           "action_dispatch.signed_cookie_salt" => config.action_dispatch.signed_cookie_salt,
           "action_dispatch.encrypted_cookie_salt" => config.action_dispatch.encrypted_cookie_salt,
