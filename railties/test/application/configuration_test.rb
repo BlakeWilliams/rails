@@ -767,6 +767,32 @@ module ApplicationTests
       assert_equal "some_value", verifier.verify(last_response.body)
     end
 
+    test "falls back to secondary secret_key_base values" do
+      make_basic_app do |application|
+        Rails.deprecator.silence do
+          application.secrets.secret_key_base = "b3c631c314c0bbca50c1b2843150fe33"
+          application.secrets.fallback_secret_key_base = "ca9631c314c0bbca50c1b2843150fb69"
+        end
+        application.config.session_store :disabled
+      end
+
+      original_secret = app.key_generator.generate_key("signed cookie")
+      original_verifiers = ActiveSupport::MessageVerifiers.new do |salt, secret_key_base: app.secret_key_base|
+        app.key_generator(app.secret_key_base).generate_key(salt)
+      end.rotate_defaults
+
+      fallback_secret = app.key_generator.generate_key("signed cookie")
+      fallback_verifiers = ActiveSupport::MessageVerifiers.new do |salt, secret_key_base: app.fallback_secret_key_base|
+        app.key_generator(app.fallback_secret_key_base).generate_key(salt)
+      end.rotate_defaults
+
+      original_encrypted_message = original_verifiers["signed_cookie"].generate("original value")
+      fallback_encrypted_message = fallback_verifiers["signed_cookie"].generate("fallback value")
+
+      assert_equal "original value", app.message_verifiers["signed_cookie"].verify(original_encrypted_message)
+      assert_equal "fallback value", app.message_verifiers["signed_cookie"].verify(fallback_encrypted_message)
+    end
+
     test "application verifier can be used in the entire application" do
       make_basic_app do |application|
         Rails.deprecator.silence do

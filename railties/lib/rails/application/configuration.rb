@@ -15,7 +15,7 @@ module Rails
                     :cache_classes, :cache_store, :consider_all_requests_local, :console,
                     :eager_load, :exceptions_app, :file_watcher, :filter_parameters, :precompile_filter_parameters,
                     :force_ssl, :helpers_paths, :hosts, :host_authorization, :logger, :log_formatter,
-                    :log_tags, :railties_order, :relative_url_root, :secret_key_base,
+                    :log_tags, :railties_order, :relative_url_root, :secret_key_base, :fallback_secret_key_base,
                     :ssl_options, :public_file_server,
                     :session_options, :time_zone, :reload_classes_only_on_change,
                     :beginning_of_week, :filter_redirect, :x,

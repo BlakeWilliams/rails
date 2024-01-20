@@ -198,7 +198,9 @@ module Rails
       @message_verifiers ||=
         ActiveSupport::MessageVerifiers.new do |salt, secret_key_base: self.secret_key_base|
           key_generator(secret_key_base).generate_key(salt)
-        end.rotate_defaults
+        end.rotate_defaults.tap do |verifiers|
+          verifiers.rotate(secret_key_base: fallback_secret_key_base) if fallback_secret_key_base.present?
+        end
     end
 
     # Returns a message verifier object.
@@ -499,6 +501,32 @@ module Rails
       end
     end
 
+    # TODO: Document
+    def fallback_secret_key_base
+      if Rails.env.local?
+        config.fallback_secret_key_base ||= secrets_fallback_secret_key_base
+        return config.fallback_secret_key_base
+      end
+
+      value = ENV["FALLBACK_SECRET_KEY_BASE"] || credentials.fallback_secret_key_base || begin
+        fallback_secret_skb = secrets_fallback_secret_key_base
+
+        if fallback_secret_skb.equal?(config.fallback_secret_key_base)
+          config.fallback_secret_key_base
+        else
+          Rails.deprecator.warn(<<~MSG.squish)
+            Your `fallback_secret_key_base` is configured in `Rails.application.secrets`,
+            which is deprecated in favor of `Rails.application.credentials` and
+            will be removed in Rails 7.2.
+          MSG
+
+          fallback_secret_skb
+        end
+      end
+
+      validate_secret_key_base(value, raise_if_missing: false)
+    end
+
     # Returns an ActiveSupport::EncryptedConfiguration instance for the
     # credentials file specified by +config.credentials.content_path+.
     #
@@ -649,13 +677,16 @@ module Rails
       default_stack.build_stack
     end
 
-    def validate_secret_key_base(secret_key_base)
+    # TODO: raise_if_missing is not great. refactor?
+    def validate_secret_key_base(secret_key_base, raise_if_missing: true)
       if secret_key_base.is_a?(String) && secret_key_base.present?
         secret_key_base
       elsif secret_key_base
         raise ArgumentError, "`secret_key_base` for #{Rails.env} environment must be a type of String`"
-      else
+      elsif raise_if_missing
         raise ArgumentError, "Missing `secret_key_base` for '#{Rails.env}' environment, set this string with `bin/rails credentials:edit`"
+      else
+        secret_key_base
       end
     end
 
@@ -687,6 +718,12 @@ module Rails
       def secrets_secret_key_base
         Rails.deprecator.silence do
           secrets.secret_key_base
+        end
+      end
+
+      def secrets_fallback_secret_key_base
+        Rails.deprecator.silence do
+          secrets.fallback_secret_key_base
         end
       end
 
